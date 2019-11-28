@@ -5,8 +5,8 @@ public struct AttributedLabel: Element {
 
     public var attributedText: NSAttributedString
     public var numberOfLines: Int = 0
-    /// The scale to which pixel measurements will be rounded. Defaults to `UIScreen.main.scale`.
-    public var roundingScale: CGFloat = UIScreen.main.scale
+
+    @Environment(\.screenScale) var screenScale
 
     public init(attributedText: NSAttributedString) {
         self.attributedText = attributedText
@@ -24,8 +24,8 @@ public struct AttributedLabel: Element {
                     options: [.usesLineFragmentOrigin],
                     context: nil)
                     .size
-                size.width = size.width.rounded(.up, by: roundingScale)
-                size.height = size.height.rounded(.up, by: roundingScale)
+                size.width = size.width.rounded(.up, by: screenScale)
+                size.height = size.height.rounded(.up, by: screenScale)
 
                 return size
             }

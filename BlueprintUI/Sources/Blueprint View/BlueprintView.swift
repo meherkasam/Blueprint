@@ -109,7 +109,11 @@ public final class BlueprintView: UIView {
 
         needsViewHierarchyUpdate = false
         lastViewHierarchyUpdateBounds = bounds
-        
+
+        var values = EnvironmentValues()
+        values[ScreenScaleKey.self] = self.window?.screen.scale ?? UIScreen.main.scale
+        EnvironmentStack.current.push(values: values)
+
         /// Grab view descriptions
         let viewNodes = element?
             .layout(frame: bounds)
@@ -121,7 +125,9 @@ public final class BlueprintView: UIView {
             content: UIView.describe() { _ in },
             layoutAttributes: LayoutAttributes(frame: bounds),
             children: viewNodes)
-        
+
+        EnvironmentStack.current.pop()
+
         rootController.update(node: rootNode, appearanceTransitionsEnabled: hasUpdatedViewHierarchy)
         hasUpdatedViewHierarchy = true
 

@@ -31,6 +31,9 @@ public struct EnvironmentValues {
                 return K.defaultValue
             }
         }
+        set {
+            values[ObjectIdentifier(key)] = newValue
+        }
     }
 }
 
