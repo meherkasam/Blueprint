@@ -8,6 +8,8 @@ public struct AttributedLabel: Element {
 
     @Environment(\.screenScale) var screenScale
 
+    public var roundingScale: CGFloat = UIScreen.main.scale
+
     public init(attributedText: NSAttributedString) {
         self.attributedText = attributedText
     }
@@ -24,14 +26,14 @@ public struct AttributedLabel: Element {
                     options: [.usesLineFragmentOrigin],
                     context: nil)
                     .size
-                size.width = size.width.rounded(.up, by: screenScale)
-                size.height = size.height.rounded(.up, by: screenScale)
+                size.width = size.width.rounded(.up, by: roundingScale)
+                size.height = size.height.rounded(.up, by: roundingScale)
 
                 return size
             }
         }
 
-        return ElementContent(measurable: Measurer(attributedText: attributedText, roundingScale: roundingScale))
+        return ElementContent(measurable: Measurer(attributedText: attributedText, roundingScale: screenScale))
     }
 
     public func backingViewDescription(bounds: CGRect, subtreeExtent: CGRect?) -> ViewDescription? {

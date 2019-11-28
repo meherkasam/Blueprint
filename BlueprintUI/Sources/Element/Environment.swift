@@ -66,29 +66,3 @@ struct EnvironmentStack {
         return stack.popLast()
     }
 }
-
-struct TestLabel: Element {
-    @Environment(\.screenScale) var screenScale
-
-    let text: NSAttributedString
-
-    var content: ElementContent {
-        return ElementContent { (constraint) -> CGSize in
-            var size = self.text.boundingRect(
-                with: constraint.maximum,
-                options: [.usesLineFragmentOrigin],
-                context: nil)
-                .size
-            size.width.round(.up, by: self.screenScale)
-            size.width.round(.up, by: self.screenScale)
-
-            return size
-        }
-    }
-
-    func backingViewDescription(bounds: CGRect, subtreeExtent: CGRect?) -> ViewDescription? {
-        return UILabel.describe { (config) in
-            config[\.attributedText] = text
-        }
-    }
-}
