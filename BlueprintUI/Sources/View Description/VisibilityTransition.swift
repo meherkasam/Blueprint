@@ -11,11 +11,28 @@ public struct VisibilityTransition {
 
     /// The animation attributes that will be used to drive the transition.
     public var attributes: AnimationAttributes
+    
+    /// When the transition animation should be performed, if nested within other transition animations.
+    public var when : PerformRule
+    
+    public enum PerformRule : Hashable {
+        /// The animation will always be performed, even if it is nested in other animations.
+        case always
+        
+        /// The animation will only be performed if not nested in other transitions.
+        case ifNotNested
+    }
 
-    public init(alpha: CGFloat, transform: CATransform3D, attributes: AnimationAttributes = AnimationAttributes()) {
+    public init(
+        alpha: CGFloat,
+        transform: CATransform3D,
+        attributes: AnimationAttributes = AnimationAttributes(),
+        when: PerformRule = .ifNotNested
+    ) {
         self.alpha = alpha
         self.transform = transform
         self.attributes = attributes
+        self.when = when
     }
 
     /// Returns a `VisibilityTransition` that scales in and out.
@@ -44,27 +61,28 @@ public struct VisibilityTransition {
 
 
 extension VisibilityTransition {
-
-    func performAppearing(view: UIView, layoutAttributes: LayoutAttributes, completion: @escaping ()->Void) {
+    
+    func performAppearing(with view: UIView, layoutAttributes: LayoutAttributes) {
 
         UIView.performWithoutAnimation {
             self.getInvisibleAttributesFor(layoutAttributes: layoutAttributes).apply(to: view)
         }
 
         attributes.perform(
-            animations: { layoutAttributes.apply(to: view) },
-            completion: completion)
-
-
+            animations: {
+                layoutAttributes.apply(to: view)
+            }
+        )
     }
 
-    func performDisappearing(view: UIView, layoutAttributes: LayoutAttributes, completion: @escaping ()->Void) {
+    func performDisappearing(with view: UIView, layoutAttributes: LayoutAttributes, completion: @escaping ()->Void) {
 
         attributes.perform(
             animations: {
                 self.getInvisibleAttributesFor(layoutAttributes: layoutAttributes).apply(to: view)
             },
-            completion: completion)
+            completion: completion
+        )
 
     }
 

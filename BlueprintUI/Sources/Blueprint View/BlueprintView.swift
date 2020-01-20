@@ -141,7 +141,7 @@ public final class BlueprintView: UIView {
             layoutAttributes: LayoutAttributes(frame: bounds),
             children: viewNodes)
         
-        rootController.update(node: rootNode, animated: self.nextViewHierarchyUpdateEnablesAppearanceTransitions)
+        rootController.update(node: rootNode, animated: self.nextViewHierarchyUpdateEnablesAppearanceTransitions, context: .init())
 
         isInsideUpdate = false
     }
@@ -180,19 +180,35 @@ extension BlueprintView {
             self.children = []
             self.view = node.viewDescription.build()
             
-            update(node: node, animated: animated)
+            self.update(node: node, animated: animated, context : UpdateContext())
         }
 
         fileprivate func canUpdateFrom(node: NativeViewNode) -> Bool {
             return node.viewDescription.viewType == type(of: view)
         }
         
-        private final class UpdateContext
+        fileprivate final class UpdateContext
         {
-            var hasPerformedTransition : Bool = false
+            private var parentAppearanceTransitions : [VisibilityTransition] = []
+            
+            func add(appearanceTransition: VisibilityTransition?)
+            {
+                guard let transition = appearanceTransition else {
+                    return
+                }
+                
+                self.parentAppearanceTransitions.append(transition)
+            }
+            
+            func animate(_ transition : VisibilityTransition) -> Bool {
+                switch transition.when {
+                case .always: return true
+                case .ifNotNested: return self.parentAppearanceTransitions.isEmpty
+                }
+            }
         }
 
-        fileprivate func update(node: NativeViewNode, animated: Bool) {
+        fileprivate func update(node: NativeViewNode, animated: Bool, context : UpdateContext) {
             
             assert(node.viewDescription.viewType == type(of: view))
 
@@ -236,14 +252,16 @@ extension BlueprintView {
                     } else {
                         layoutTransition = .inherited
                     }
+                    
                     layoutTransition.perform {
                         child.layoutAttributes.apply(to: controller.view)
 
                         contentView.insertSubview(controller.view, at: index)
 
-                        controller.update(node: child, animated: animated)
+                        controller.update(node: child, animated: animated, context: context)
                     }
                 } else {
+                    let transition = child.viewDescription.appearingTransition
                     let controller = NativeViewController(node: child, animated: animated)
                     newChildren.append((path: path, node: controller))
                     
@@ -252,22 +270,24 @@ extension BlueprintView {
                     }
                     
                     contentView.insertSubview(controller.view, at: index)
-
-                    controller.update(node: child, animated: animated)
                     
-                    if animated {
-                        if let transition = child.viewDescription.appearingTransition {
-                            transition.performAppearing(view: controller.view, layoutAttributes: child.layoutAttributes, completion: {})
-                        }
+                    context.add(appearanceTransition: transition)
+                    
+                    controller.update(node: child, animated: animated, context: context)
+                    
+                    if let transition = transition, animated, context.animate(transition) {
+                        transition.performAppearing(with: controller.view, layoutAttributes: child.layoutAttributes)
                     }
                 }
             }
             
             for controller in oldChildren.values {
-                if let transition = controller.viewDescription.disappearingTransition {
-                    transition.performDisappearing(view: controller.view, layoutAttributes: controller.layoutAttributes, completion: {
+                let transition = controller.viewDescription.disappearingTransition
+                                
+                if let transition = transition, animated {
+                    transition.performDisappearing(with: controller.view, layoutAttributes: controller.layoutAttributes) {
                         controller.view.removeFromSuperview()
-                    })
+                    }
                 } else {
                     controller.view.removeFromSuperview()
                 }

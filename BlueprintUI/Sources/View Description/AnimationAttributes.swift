@@ -27,7 +27,7 @@ public struct AnimationAttributes {
 
 extension AnimationAttributes {
 
-    func perform(animations: @escaping () -> Void, completion: @escaping ()->Void) {
+    func perform(animations: @escaping () -> Void, completion: @escaping () -> Void = {}) {
 
         var options: UIView.AnimationOptions = [UIView.AnimationOptions(animationCurve: curve), .beginFromCurrentState]
         if allowUserInteraction {
