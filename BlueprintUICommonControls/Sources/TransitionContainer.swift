@@ -6,14 +6,25 @@ import UIKit
 /// disappears, or changes layout.
 public struct TransitionContainer: Element {
 
-    public var appearingTransition: VisibilityTransition = .fade
-    public var disappearingTransition: VisibilityTransition = .fade
-    public var layoutTransition: LayoutTransition = .specific(AnimationAttributes())
+    public var appearingTransition: VisibilityTransition
+    public var disappearingTransition: VisibilityTransition
+    public var layoutTransition: LayoutTransition
 
     public var wrappedElement: Element
 
-    public init(wrapping element: Element) {
+    public init(
+        appearingTransition: VisibilityTransition = .fade,
+        disappearingTransition: VisibilityTransition = .fade,
+        layoutTransition: LayoutTransition = .specific(AnimationAttributes()),
+        wrapping element: Element,
+        configure : (inout TransitionContainer) -> () = { _ in }
+    ) {
+        self.appearingTransition = appearingTransition
+        self.disappearingTransition = disappearingTransition
+        self.layoutTransition = layoutTransition
+        
         self.wrappedElement = element
+        configure(&self)
     }
 
     public var content: ElementContent {

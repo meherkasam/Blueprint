@@ -26,13 +26,16 @@ public struct VisibilityTransition {
     public init(
         alpha: CGFloat,
         transform: CATransform3D,
-        attributes: AnimationAttributes = AnimationAttributes(),
-        when: PerformRule = .ifNotNested
+        attributes: AnimationAttributes = .init(),
+        when: PerformRule = .ifNotNested,
+        configure : (inout VisibilityTransition) -> () = { _ in }
     ) {
         self.alpha = alpha
         self.transform = transform
         self.attributes = attributes
         self.when = when
+        
+        configure(&self)
     }
 
     /// Returns a `VisibilityTransition` that scales in and out.
@@ -56,8 +59,6 @@ public struct VisibilityTransition {
             transform: CATransform3DMakeScale(0.01, 0.01, 0.01))
     }
 }
-
-
 
 
 extension VisibilityTransition {

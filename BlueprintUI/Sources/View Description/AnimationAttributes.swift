@@ -15,11 +15,19 @@ public struct AnimationAttributes {
     /// Whether the view supports user interaction during the animation.
     public var allowUserInteraction: Bool
 
-    public init(delay : TimeInterval = 0.0, duration: TimeInterval = 0.2, curve: UIView.AnimationCurve = .easeInOut, allowUserInteraction: Bool = true) {
+    public init(
+        delay : TimeInterval = 0.0,
+        duration: TimeInterval = 0.2,
+        curve: UIView.AnimationCurve = .easeInOut,
+        allowUserInteraction: Bool = true,
+        configure : (inout AnimationAttributes) -> () = { _ in }
+    ) {
         self.delay = delay
         self.duration = duration
         self.curve = curve
         self.allowUserInteraction = allowUserInteraction
+        
+        configure(&self)
     }
 
 }

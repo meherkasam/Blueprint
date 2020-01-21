@@ -122,10 +122,12 @@ public final class BlueprintView: UIView {
     
     private func updateViewHierarchyIfNeeded() {
         guard needsViewHierarchyUpdate || bounds != lastViewHierarchyUpdateBounds else { return }
+        
+        guard isInsideUpdate == false else {
+            fatalError("Reentrant updates are not supported in BlueprintView. Ensure that view events from within the hierarchy are not synchronously triggering additional updates.")
+        }
 
-        assert(!isInsideUpdate, "Reentrant updates are not supported in BlueprintView. Ensure that view events from within the hierarchy are not synchronously triggering additional updates.")
         isInsideUpdate = true
-
         needsViewHierarchyUpdate = false
         lastViewHierarchyUpdateBounds = bounds
         
@@ -139,9 +141,10 @@ public final class BlueprintView: UIView {
         let rootNode = NativeViewNode(
             content: UIView.describe() { _ in },
             layoutAttributes: LayoutAttributes(frame: bounds),
-            children: viewNodes)
+            children: viewNodes
+        )
         
-        rootController.update(node: rootNode, animated: self.nextViewHierarchyUpdateEnablesAppearanceTransitions, context: .init())
+        rootController.update(with: rootNode, animated: self.nextViewHierarchyUpdateEnablesAppearanceTransitions, context: .init())
 
         isInsideUpdate = false
     }
@@ -180,42 +183,27 @@ extension BlueprintView {
             self.children = []
             self.view = node.viewDescription.build()
             
-            self.update(node: node, animated: animated, context : UpdateContext())
+            self.update(with: node, animated: animated, context : UpdateContext())
         }
 
         fileprivate func canUpdateFrom(node: NativeViewNode) -> Bool {
             return node.viewDescription.viewType == type(of: view)
         }
-        
-        fileprivate final class UpdateContext
-        {
-            private var parentAppearanceTransitions : [VisibilityTransition] = []
-            
-            func add(appearanceTransition: VisibilityTransition?)
-            {
-                guard let transition = appearanceTransition else {
-                    return
-                }
-                
-                self.parentAppearanceTransitions.append(transition)
-            }
-            
-            func animate(_ transition : VisibilityTransition) -> Bool {
-                switch transition.when {
-                case .always: return true
-                case .ifNotNested: return self.parentAppearanceTransitions.isEmpty
-                }
-            }
-        }
 
-        fileprivate func update(node: NativeViewNode, animated: Bool, context : UpdateContext) {
+        fileprivate func update(with node: NativeViewNode, animated: Bool, context : UpdateContext) {
             
-            assert(node.viewDescription.viewType == type(of: view))
+            guard self.canUpdateFrom(node: node) else {
+                fatalError("Blueprint Error: Cannot update a view from \(node.viewDescription.viewType) to \(type(of: view)). Types must match.")
+            }
+            
+            // Update properties from the updated element node.
 
             viewDescription = node.viewDescription
             layoutAttributes = node.layoutAttributes
             
             viewDescription.apply(to: view)
+            
+            // Store children in a dictionary so they can later be accessed by their path.
             
             var oldChildren: [ElementPath: NativeViewController] = [:]
             oldChildren.reserveCapacity(children.count)
@@ -223,6 +211,8 @@ extension BlueprintView {
             for (path, childController) in children {
                 oldChildren[path] = childController
             }
+            
+            // When the update pass is complete, this will contain all children.
             
             var newChildren: [(path: ElementPath, node: NativeViewController)] = []
             newChildren.reserveCapacity(node.children.count)
@@ -234,13 +224,17 @@ extension BlueprintView {
                 let (path, child) = node.children[index]
 
                 guard usedKeys.contains(path) == false else {
-                    fatalError("Duplicate view identifier")
+                    fatalError("Blueprint Error: Duplicate view identifier: \(path).")
                 }
                 usedKeys.insert(path)
 
                 let contentView = node.viewDescription.contentView(in: self.view)
-
+                
+                var childContext = context
+                                
                 if let controller = oldChildren[path], controller.canUpdateFrom(node: child) {
+                    
+                    // We can update the existing view if it is of the same type as the last view at this path.
 
                     oldChildren.removeValue(forKey: path)
                     newChildren.append((path: path, node: controller))
@@ -253,16 +247,25 @@ extension BlueprintView {
                         layoutTransition = .inherited
                     }
                     
+                    // Update the layout of the view with the provided layout transformation.
+                    // Attributes are applied inside the transition to preserve the desired animation.
+                    
                     layoutTransition.perform {
                         child.layoutAttributes.apply(to: controller.view)
 
+                        // Even though this view is already in the hierarchy,
+                        // re-inserting the subview ensures we map z-ordering of the hierarchy.
                         contentView.insertSubview(controller.view, at: index)
 
-                        controller.update(node: child, animated: animated, context: context)
+                        controller.update(with: child, animated: animated, context: childContext)
                     }
                 } else {
+                    // ...otherwise, we will make a new view.
+                    // The `for` loop below will handle cleaning up the old view.
+                    
                     let transition = child.viewDescription.appearingTransition
                     let controller = NativeViewController(node: child, animated: animated)
+                    
                     newChildren.append((path: path, node: controller))
                     
                     UIView.performWithoutAnimation {
@@ -271,15 +274,18 @@ extension BlueprintView {
                     
                     contentView.insertSubview(controller.view, at: index)
                     
-                    context.add(appearanceTransition: transition)
+                    childContext.add(appearanceTransition: transition)
                     
-                    controller.update(node: child, animated: animated, context: context)
+                    controller.update(with: child, animated: animated, context: childContext)
                     
                     if let transition = transition, animated, context.animate(transition) {
                         transition.performAppearing(with: controller.view, layoutAttributes: child.layoutAttributes)
                     }
                 }
             }
+            
+            // Finally, any children remaining in `oldChildren` should be removed from the hierarchy.
+            // They are left over from the previous element hierarchy.
             
             for controller in oldChildren.values {
                 let transition = controller.viewDescription.disappearingTransition
@@ -295,7 +301,25 @@ extension BlueprintView {
             
             children = newChildren
         }
-        
     }
     
+    fileprivate struct UpdateContext {
+        private var parentAppearanceTransitions : [VisibilityTransition] = []
+        
+        mutating func add(appearanceTransition: VisibilityTransition?) {
+            
+            guard let transition = appearanceTransition else {
+                return
+            }
+            
+            self.parentAppearanceTransitions.append(transition)
+        }
+        
+        func animate(_ transition : VisibilityTransition) -> Bool {
+            switch transition.when {
+            case .always: return true
+            case .ifNotNested: return self.parentAppearanceTransitions.isEmpty
+            }
+        }
+    }
 }
