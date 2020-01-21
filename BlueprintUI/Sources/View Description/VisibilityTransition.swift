@@ -13,7 +13,7 @@ public struct VisibilityTransition {
     public var attributes: AnimationAttributes
     
     /// When the transition animation should be performed, if nested within other transition animations.
-    public var when : PerformRule
+    public var performing : PerformRule
     
     public enum PerformRule : Hashable {
         /// The animation will always be performed, even if it is nested in other animations.
@@ -27,13 +27,13 @@ public struct VisibilityTransition {
         alpha: CGFloat,
         transform: CATransform3D,
         attributes: AnimationAttributes = .init(),
-        when: PerformRule = .ifNotNested,
+        performing: PerformRule = .ifNotNested,
         configure : (inout VisibilityTransition) -> () = { _ in }
     ) {
         self.alpha = alpha
         self.transform = transform
         self.attributes = attributes
-        self.when = when
+        self.performing = performing
         
         configure(&self)
     }

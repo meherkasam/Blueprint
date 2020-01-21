@@ -316,7 +316,7 @@ extension BlueprintView {
         }
         
         func animate(_ transition : VisibilityTransition) -> Bool {
-            switch transition.when {
+            switch transition.performing {
             case .always: return true
             case .ifNotNested: return self.parentAppearanceTransitions.isEmpty
             }
